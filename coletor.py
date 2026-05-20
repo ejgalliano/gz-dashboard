@@ -87,6 +87,7 @@ def coletar_saldo(account_id, cliente_id):
         "gasto_7d": gasto_7d,
         "media_diaria_7d": round(media_diaria, 2),
         "dias_restantes": dias_restantes,
+        "campanhas_ativas": len(campanhas),
         "coletado_em": datetime.now().isoformat()
     })
 

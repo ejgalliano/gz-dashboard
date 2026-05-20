@@ -159,6 +159,7 @@ export default function App() {
                       <th>Cliente</th>
                       <th>Saldo</th>
                       <th>Orç. diário</th>
+                      <th>Campanhas ativas</th>
                       <th>Dias restantes</th>
                       <th>Gasto {periodo}</th>
                       <th>Alcance</th>
@@ -176,6 +177,7 @@ export default function App() {
                         <td><strong>{c.nome}</strong></td>
                         <td>{c.balance ? `R$${c.balance.balance.toFixed(2)}` : '—'}</td>
                         <td>{c.balance ? `R$${c.balance.orcamento_diario_ativo.toFixed(2)}` : '—'}</td>
+                        <td>{c.balance?.campanhas_ativas ?? '—'}</td>
                         <td><DiasRestantesBadge dias={c.balance?.dias_restantes ?? null} /></td>
                         <td>R${c.gasto7d.toFixed(2)}</td>
                         <td>{c.ultimaMetrica?.alcance ? c.ultimaMetrica.alcance.toLocaleString('pt-BR') : '—'}</td>

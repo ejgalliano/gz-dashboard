@@ -39,7 +39,8 @@ export interface AccountBalance {
   gasto_7d: number
   media_diaria_7d: number
   dias_restantes: number | null
-  coletado_em: string
+  campanhas_ativas: number
+    coletado_em: string
 }
 
 export interface ClienteComMetrica extends Cliente {
