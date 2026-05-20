@@ -1,10 +1,7 @@
 import React, { useState } from 'react'
 import { useDashboard } from './hooks/useDashboard'
 import { Periodo, ClienteComMetrica, Alerta } from './lib/types'
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar
-} from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import './App.css'
@@ -19,16 +16,23 @@ function KpiCard({ label, value, sub, cor }: { label: string; value: string; sub
   )
 }
 
-function AlertaBadge({ status }: { status: string }) {
-  const map: Record<string, string> = { ok: 'badge-ok', aviso: 'badge-warn', critico: 'badge-crit' }
-  const label: Record<string, string> = { ok: 'OK', aviso: 'Atenção', critico: 'Crítico' }
-  return <span className={`badge ${map[status] || 'badge-warn'}`}>{label[status] || status}</span>
+function DiasRestantesBadge({ dias }: { dias: number | null }) {
+  if (dias === null) return <span className="badge badge-warn">—</span>
+  if (dias <= 3) return <span className="badge badge-crit">{dias}d ⚠️</span>
+  if (dias <= 7) return <span className="badge badge-warn">{dias}d</span>
+  return <span className="badge badge-ok">{dias}d</span>
 }
 
 function StatusBadge({ cliente }: { cliente: ClienteComMetrica }) {
   if (!cliente.ultimaMetrica) return <span className="badge badge-warn">sem dados</span>
   if (cliente.ultimaMetrica.gasto === 0) return <span className="badge badge-warn">pausado</span>
   return <span className="badge badge-ok">ativo</span>
+}
+
+function AlertaBadge({ status }: { status: string }) {
+  const map: Record<string, string> = { ok: 'badge-ok', aviso: 'badge-warn', critico: 'badge-crit' }
+  const label: Record<string, string> = { ok: 'OK', aviso: 'Atenção', critico: 'Crítico' }
+  return <span className={`badge ${map[status] || 'badge-warn'}`}>{label[status] || status}</span>
 }
 
 function GraficoEvolucao({ clientes, periodo }: { clientes: ClienteComMetrica[]; periodo: Periodo }) {
@@ -52,7 +56,7 @@ function GraficoEvolucao({ clientes, periodo }: { clientes: ClienteComMetrica[];
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
         <XAxis dataKey="dataFmt" tick={{ fontSize: 11, fill: '#888' }} />
         <YAxis tick={{ fontSize: 11, fill: '#888' }} tickFormatter={v => `R$${v}`} />
-        <Tooltip formatter={(v: any) => [`R$${v.toFixed(2)}`, 'Gasto']} />
+        <Tooltip formatter={(v: any) => [`R$${Number(v).toFixed(2)}`, 'Gasto']} />
         <Line type="monotone" dataKey="gasto" stroke="#1a56a0" strokeWidth={2} dot={false} />
       </LineChart>
     </ResponsiveContainer>
@@ -71,7 +75,7 @@ function GraficoBarras({ clientes }: { clientes: ClienteComMetrica[] }) {
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
         <XAxis dataKey="nome" tick={{ fontSize: 10, fill: '#888' }} angle={-20} textAnchor="end" />
         <YAxis tick={{ fontSize: 11, fill: '#888' }} tickFormatter={v => `R$${v}`} />
-        <Tooltip formatter={(v: any) => [`R$${v.toFixed(2)}`, 'Gasto 7d']} />
+        <Tooltip formatter={(v: any) => [`R$${Number(v).toFixed(2)}`, 'Gasto 7d']} />
         <Bar dataKey="gasto" fill="#1a56a0" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -86,6 +90,9 @@ export default function App() {
   const fmtData = (d: string) => {
     try { return format(parseISO(d), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) } catch { return d }
   }
+
+  const fmt = (v: number, prefix = 'R$', decimals = 2) =>
+    v > 0 ? `${prefix}${v.toFixed(decimals)}` : '—'
 
   return (
     <div className="app">
@@ -116,6 +123,7 @@ export default function App() {
         <main className="main">
           <div className="kpi-grid">
             <KpiCard label="Gasto total" value={`R$${totais.gasto.toFixed(2)}`} sub={`últimos ${periodo}`} />
+            <KpiCard label="Saldo total" value={`R$${totais.saldoTotal.toFixed(2)}`} sub="todas as contas" cor={totais.saldoTotal < 100 ? '#c0392b' : '#1a7a3c'} />
             <KpiCard label="Total de cliques" value={totais.cliques.toLocaleString('pt-BR')} sub={`últimos ${periodo}`} />
             <KpiCard label="Conversões" value={totais.conversoes.toString()} sub={`últimos ${periodo}`} />
             <KpiCard label="Clientes ativos" value={`${totais.clientesAtivos}/${clientes.length}`} sub="com gasto ontem" cor={totais.clientesAtivos < clientes.length ? '#c0392b' : '#1a7a3c'} />
@@ -148,21 +156,34 @@ export default function App() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Cliente</th><th>Plataforma</th><th>Gasto {periodo}</th>
-                      <th>Cliques {periodo}</th><th>Conversões</th><th>ROAS</th>
-                      <th>CTR ontem</th><th>Status</th>
+                      <th>Cliente</th>
+                      <th>Saldo</th>
+                      <th>Orç. diário</th>
+                      <th>Dias restantes</th>
+                      <th>Gasto {periodo}</th>
+                      <th>Alcance</th>
+                      <th>CTR</th>
+                      <th>CPC</th>
+                      <th>CPA</th>
+                      <th>CPL</th>
+                      <th>ROAS</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {clientes.map(c => (
                       <tr key={c.id}>
                         <td><strong>{c.nome}</strong></td>
-                        <td><span className="plataforma-badge">{c.plataforma.toUpperCase()}</span></td>
+                        <td>{c.balance ? `R$${c.balance.balance.toFixed(2)}` : '—'}</td>
+                        <td>{c.balance ? `R$${c.balance.orcamento_diario_ativo.toFixed(2)}` : '—'}</td>
+                        <td><DiasRestantesBadge dias={c.balance?.dias_restantes ?? null} /></td>
                         <td>R${c.gasto7d.toFixed(2)}</td>
-                        <td>{c.cliques7d.toLocaleString('pt-BR')}</td>
-                        <td>{c.conversoes7d}</td>
+                        <td>{c.ultimaMetrica?.alcance ? c.ultimaMetrica.alcance.toLocaleString('pt-BR') : '—'}</td>
+                        <td>{c.ultimaMetrica?.ctr ? (c.ultimaMetrica.ctr * 100).toFixed(2) + '%' : '—'}</td>
+                        <td>{fmt(c.ultimaMetrica?.cpc || 0)}</td>
+                        <td>{fmt(c.ultimaMetrica?.cpa || 0)}</td>
+                        <td>{fmt(c.ultimaMetrica?.cpl || 0)}</td>
                         <td>{c.roas7d > 0 ? c.roas7d.toFixed(2) + 'x' : '—'}</td>
-                        <td>{c.ultimaMetrica ? (c.ultimaMetrica.ctr * 100).toFixed(2) + '%' : '—'}</td>
                         <td><StatusBadge cliente={c} /></td>
                       </tr>
                     ))}
